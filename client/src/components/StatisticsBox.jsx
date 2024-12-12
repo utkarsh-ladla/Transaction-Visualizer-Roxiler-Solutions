@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { getStatistics } from "../api/apiService"; // Fetch statistics from API
+import React, { useState, useEffect } from "react";
+import { getStatistics } from "../api/apiService";
 
 const StatisticsBox = ({ month }) => {
   const [statistics, setStatistics] = useState({
@@ -10,14 +10,18 @@ const StatisticsBox = ({ month }) => {
 
   useEffect(() => {
     const fetchStatistics = async () => {
-      const data = await getStatistics(month);
-      setStatistics(data);
+      try {
+        const data = await getStatistics(month);
+        setStatistics(data);
+      } catch (error) {
+        console.error("Failed to fetch statistics:", error);
+      }
     };
     fetchStatistics();
   }, [month]);
 
   return (
-    <div className="statistics-box">
+    <div>
       <h3>Statistics for Month {month}</h3>
       <p>Total Sale: {statistics.totalSale}</p>
       <p>Total Sold Items: {statistics.totalSold}</p>

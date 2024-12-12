@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { getTransactions } from "../api/apiService"; // API helper function for fetching data
+import React, { useState, useEffect } from "react";
+import { getTransactions } from "../api/apiService";
 
 const TransactionTable = ({ month }) => {
   const [transactions, setTransactions] = useState([]);
@@ -8,8 +8,12 @@ const TransactionTable = ({ month }) => {
 
   useEffect(() => {
     const fetchTransactions = async () => {
-      const data = await getTransactions({ month, page, perPage: 10, search });
-      setTransactions(data);
+      try {
+        const data = await getTransactions({ month, page, perPage: 10, search });
+        setTransactions(data);
+      } catch (error) {
+        console.error("Failed to fetch transactions:", error);
+      }
     };
     fetchTransactions();
   }, [month, page, search]);
@@ -18,7 +22,7 @@ const TransactionTable = ({ month }) => {
     <div>
       <input
         type="text"
-        placeholder="Search by title/description/price"
+        placeholder="Search by title, description, or price"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
       />
@@ -28,7 +32,7 @@ const TransactionTable = ({ month }) => {
             <th>Title</th>
             <th>Description</th>
             <th>Price</th>
-            <th>Date</th>
+            <th>Date of Sale</th>
           </tr>
         </thead>
         <tbody>

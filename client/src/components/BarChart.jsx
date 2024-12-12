@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { Bar } from "react-chartjs-2";
-import { getBarChartData } from "../api/apiService"; // Fetch bar chart data from API
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from "chart.js";
+import { getBarChartData } from "../api/apiService";
 
-// Register Chart.js components
+
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 const BarChart = ({ month }) => {
@@ -11,40 +11,54 @@ const BarChart = ({ month }) => {
 
   useEffect(() => {
     const fetchBarChartData = async () => {
-      const data = await getBarChartData(month);
+      try {
+        const data = await getBarChartData(month);
+        console.log("Bar Chart API Data:", data); 
 
-      if (data && data.length > 0) {
-        const chartLabels = data.map((item) => item.range); // Price ranges (e.g., "0-100")
-        const chartValues = data.map((item) => item.count); // Corresponding counts
+        if (data && data.length > 0) {
+          const labels = data.map((item) => item.range);
+          const values = data.map((item) => item.count);
 
-        setChartData({
-          labels: chartLabels,
-          datasets: [
-            {
-              label: "Items in Price Range",
-              data: chartValues,
-              backgroundColor: "rgba(75, 192, 192, 0.2)",
-              borderColor: "rgba(75, 192, 192, 1)",
-              borderWidth: 1,
-            },
-          ],
-        });
-      } else {
-        console.log("No data found for the selected month.");
+          setChartData({
+            labels,
+            datasets: [
+              {
+                label: "Items in Price Range",
+                data: values,
+                backgroundColor: "rgba(75, 192, 192, 0.2)",
+                borderColor: "rgba(75, 192, 192, 1)",
+                borderWidth: 1,
+              },
+            ],
+          });
+        } else {
+          console.log("No data available for the selected month.");
+        }
+      } catch (error) {
+        console.error("Failed to fetch bar chart data:", error);
       }
     };
 
     fetchBarChartData();
   }, [month]);
 
-  if (!chartData) return <p>Loading chart data...</p>;
+  if (!chartData) return <p>Loading chart...</p>;
 
-  return (
-    <div>
-      <h3>Price Range Distribution for Month {month}</h3>
-      <Bar data={chartData} />
-    </div>
-  );
+  const options = {
+    responsive: true,
+    plugins: {
+      legend: {
+        display: true,
+        position: "top",
+      },
+      title: {
+        display: true,
+        text: `Price Range Distribution for Month ${month}`,
+      },
+    },
+  };
+
+  return <Bar data={chartData} options={options} />;
 };
 
 export default BarChart;

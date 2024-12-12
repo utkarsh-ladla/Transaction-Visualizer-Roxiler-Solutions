@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const Transaction = require("../models/Transaction");
 
-// Route to initialize the database (fetch data from the third-party API)
+// fetch data from the third-party API
 router.get("/initialize", async (req, res) => {
   try {
     const { data } = await axios.get(
@@ -17,28 +17,27 @@ router.get("/initialize", async (req, res) => {
   }
 });
 
-// Route to list transactions with search and pagination
+//  transactions with search and pagination
 router.get("/", async (req, res) => {
-  const { search = "", page = 1, perPage = 10 } = req.query;
+  const { search = "", page = 1, perPage = 10, month } = req.query;
+  const startDate = new Date(`2024-${month}-01`);
+  const endDate = new Date(startDate);
+  endDate.setMonth(startDate.getMonth() + 1);
 
-  let query = {};
+  let query = { dateOfSale: { $gte: startDate, $lt: endDate } };
 
-  // Apply search filter if there is a search term
   if (search.trim()) {
-    query = {
-      $or: [
-        { title: new RegExp(search, "i") },
-        { description: new RegExp(search, "i") },
-        { price: { $regex: search, $options: "i" } },
-      ],
-    };
+    query.$or = [
+      { title: new RegExp(search, "i") },
+      { description: new RegExp(search, "i") },
+      { price: { $regex: search, $options: "i" } },
+    ];
   }
 
   try {
     const transactions = await Transaction.find(query)
       .skip((page - 1) * perPage)
       .limit(Number(perPage));
-
     res.json(transactions);
   } catch (error) {
     console.error("Error fetching transactions:", error);
@@ -46,29 +45,25 @@ router.get("/", async (req, res) => {
   }
 });
 
-// Route to get statistics (total sale, sold items, not sold items) for the selected month
+
+// get statistics (total sale, sold items, not sold items) for the selected month
 router.get("/statistics", async (req, res) => {
   const { month } = req.query;
-  const startDate = new Date(`2024-${month}-01`); // Start of the month
+  const startDate = new Date(`2024-${month}-01`);
   const endDate = new Date(startDate);
-  endDate.setMonth(startDate.getMonth() + 1); // End of the month
+  endDate.setMonth(startDate.getMonth() + 1);
 
   try {
-    // Calculate total sale amount for the selected month
     const totalSale = await Transaction.aggregate([
-      {
-        $match: { dateOfSale: { $gte: startDate, $lt: endDate }, isSold: true },
-      },
+      { $match: { dateOfSale: { $gte: startDate, $lt: endDate }, isSold: true } },
       { $group: { _id: null, total: { $sum: "$price" } } },
     ]);
 
-    // Calculate total sold items
     const totalSold = await Transaction.countDocuments({
       dateOfSale: { $gte: startDate, $lt: endDate },
       isSold: true,
     });
 
-    // Calculate total not sold items
     const totalNotSold = await Transaction.countDocuments({
       dateOfSale: { $gte: startDate, $lt: endDate },
       isSold: false,
@@ -85,7 +80,8 @@ router.get("/statistics", async (req, res) => {
   }
 });
 
-// Route to get price range distribution for the selected month
+
+// get price range distribution for the selected month
 router.get("/bar-chart", async (req, res) => {
   const { month } = req.query;
   const startDate = new Date(`2024-${month}-01`);
@@ -122,5 +118,47 @@ router.get("/bar-chart", async (req, res) => {
     res.status(500).send("Error fetching bar chart data");
   }
 });
+
+
+
+router.get("/pie-chart", async (req, res) => {
+  const { month } = req.query;
+  const startDate = new Date(`2024-${month}-01`);
+  const endDate = new Date(startDate);
+  endDate.setMonth(startDate.getMonth() + 1);
+
+  try {
+    const categories = await Transaction.aggregate([
+      { $match: { dateOfSale: { $gte: startDate, $lt: endDate } } },
+      { $group: { _id: "$category", count: { $sum: 1 } } },
+    ]);
+
+    res.json(categories);
+  } catch (error) {
+    console.error("Error fetching pie chart data:", error);
+    res.status(500).send("Error fetching pie chart data");
+  }
+});
+
+
+router.get("/combined", async (req, res) => {
+  const { month } = req.query;
+
+  try {
+    const statistics = await axios.get(`/api/transactions/statistics?month=${month}`);
+    const barChart = await axios.get(`/api/transactions/bar-chart?month=${month}`);
+    const pieChart = await axios.get(`/api/transactions/pie-chart?month=${month}`);
+
+    res.json({
+      statistics: statistics.data,
+      barChart: barChart.data,
+      pieChart: pieChart.data,
+    });
+  } catch (error) {
+    console.error("Error fetching combined data:", error);
+    res.status(500).send("Error fetching combined data");
+  }
+});
+
 
 module.exports = router;
